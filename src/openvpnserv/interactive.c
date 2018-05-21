@@ -452,7 +452,6 @@ static BOOL
 GetStartupData(HANDLE pipe, STARTUP_DATA *sud)
 {
     size_t len;
-    BOOL ret = FALSE;
     WCHAR *data = NULL;
     DWORD size, bytes, read;
 
@@ -461,16 +460,23 @@ GetStartupData(HANDLE pipe, STARTUP_DATA *sud)
     {
         MsgToEventLog(M_SYSERR, TEXT("PeekNamedPipeAsync failed"));
         ReturnLastError(pipe, L"PeekNamedPipeAsync");
-        goto out;
+        goto err;
     }
 
     size = bytes / sizeof(*data);
+    if (size == 0)
+    {
+        MsgToEventLog(M_SYSERR, TEXT("malformed startup data: 1 byte received"));
+        ReturnError(pipe, ERROR_STARTUP_DATA, L"GetStartupData", 1, &exit_event);
+        goto err;
+    }
+
     data = malloc(bytes);
     if (data == NULL)
     {
         MsgToEventLog(M_SYSERR, TEXT("malloc failed"));
         ReturnLastError(pipe, L"malloc");
-        goto out;
+        goto err;
     }
 
     read = ReadPipeAsync(pipe, data, bytes, 1, &exit_event);
@@ -478,14 +484,14 @@ GetStartupData(HANDLE pipe, STARTUP_DATA *sud)
     {
         MsgToEventLog(M_SYSERR, TEXT("ReadPipeAsync failed"));
         ReturnLastError(pipe, L"ReadPipeAsync");
-        goto out;
+        goto err;
     }
 
     if (data[size - 1] != 0)
     {
         MsgToEventLog(M_ERR, TEXT("Startup data is not NULL terminated"));
         ReturnError(pipe, ERROR_STARTUP_DATA, L"GetStartupData", 1, &exit_event);
-        goto out;
+        goto err;
     }
 
     sud->directory = data;
@@ -495,7 +501,7 @@ GetStartupData(HANDLE pipe, STARTUP_DATA *sud)
     {
         MsgToEventLog(M_ERR, TEXT("Startup data ends at working directory"));
         ReturnError(pipe, ERROR_STARTUP_DATA, L"GetStartupData", 1, &exit_event);
-        goto out;
+        goto err;
     }
 
     sud->options = sud->directory + len;
@@ -505,16 +511,16 @@ GetStartupData(HANDLE pipe, STARTUP_DATA *sud)
     {
         MsgToEventLog(M_ERR, TEXT("Startup data ends at command line options"));
         ReturnError(pipe, ERROR_STARTUP_DATA, L"GetStartupData", 1, &exit_event);
-        goto out;
+        goto err;
     }
 
     sud->std_input = sud->options + len;
-    data = NULL; /* don't free data */
-    ret = TRUE;
+    return TRUE;
 
-out:
+err:
+    sud->directory = NULL;		/* caller must not free() */
     free(data);
-    return ret;
+    return FALSE;
 }
 
 
