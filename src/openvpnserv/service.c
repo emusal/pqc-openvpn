@@ -6,6 +6,7 @@
  *
  * Copyright (C) 1993 - 2000.  Microsoft Corporation.  All rights reserved.
  *                      2013 Heiko Hund <heiko.hund@sophos.com>
+ * Portions Copyright (C) 2018 Microsoft Corporation
  */
 
 #include "service.h"

@@ -8,6 +8,7 @@
  *  Copyright (C) 2002-2017 OpenVPN Technologies, Inc. <sales@openvpn.net>
  *  Copyright (C) 2010-2017 Fox Crypto B.V. <openvpn@fox-it.com>
  *  Copyright (C) 2008-2013 David Sommerseth <dazo@users.sourceforge.net>
+ *  Portions Copyright (C) 2018 Microsoft Corporation
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2
