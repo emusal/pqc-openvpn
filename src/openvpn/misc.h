@@ -5,7 +5,7 @@
  *             packet encryption, packet authentication, and
  *             packet compression.
  *
- *  Copyright (C) 2002-2017 OpenVPN Technologies, Inc. <sales@openvpn.net>
+ *  Copyright (C) 2002-2018 OpenVPN Inc <sales@openvpn.net>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2
@@ -173,7 +173,6 @@ struct user_pass
 {
     bool defined;
     bool nocache;
-    bool tokenized; /* true if password has been substituted by a token */
     bool wait_for_push; /* true if this object is waiting for a push-reply */
 
 /* max length of username/password */
@@ -255,7 +254,8 @@ void fail_user_pass(const char *prefix,
 
 void purge_user_pass(struct user_pass *up, const bool force);
 
-void set_auth_token(struct user_pass *up, const char *token);
+void set_auth_token(struct user_pass *up, struct user_pass *tk,
+                    const char *token);
 
 /*
  * Process string received by untrusted peer before

@@ -5,8 +5,8 @@
  *             packet encryption, packet authentication, and
  *             packet compression.
  *
- *  Copyright (C) 2002-2017 OpenVPN Technologies, Inc. <sales@openvpn.net>
- *  Copyright (C) 2010-2017 Fox Crypto B.V. <openvpn@fox-it.com>
+ *  Copyright (C) 2002-2018 OpenVPN Inc <sales@openvpn.net>
+ *  Copyright (C) 2010-2018 Fox Crypto B.V. <openvpn@fox-it.com>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2
@@ -721,7 +721,7 @@ crypto_adjust_frame_parameters(struct frame *frame,
                                bool packet_id,
                                bool packet_id_long_form)
 {
-    size_t crypto_overhead = 0;
+    unsigned int crypto_overhead = 0;
 
     if (packet_id)
     {
@@ -749,10 +749,10 @@ crypto_adjust_frame_parameters(struct frame *frame,
     frame_add_to_extra_frame(frame, crypto_overhead);
 
     msg(D_MTU_DEBUG, "%s: Adjusting frame parameters for crypto by %u bytes",
-        __func__, (unsigned int) crypto_overhead);
+        __func__, crypto_overhead);
 }
 
-size_t
+unsigned int
 crypto_max_overhead(void)
 {
     return packet_id_size(true) + OPENVPN_MAX_IV_LENGTH
@@ -842,7 +842,7 @@ init_key_type(struct key_type *kt, const char *ciphername,
 
 /* given a key and key_type, build a key_ctx */
 void
-init_key_ctx(struct key_ctx *ctx, struct key *key,
+init_key_ctx(struct key_ctx *ctx, const struct key *key,
              const struct key_type *kt, int enc,
              const char *prefix)
 {
@@ -1570,11 +1570,18 @@ ascii2keydirection(int msglevel, const char *str)
 }
 
 const char *
-keydirection2ascii(int kd, bool remote)
+keydirection2ascii(int kd, bool remote, bool humanreadable)
 {
     if (kd == KEY_DIRECTION_BIDIRECTIONAL)
     {
-        return NULL;
+        if (humanreadable)
+        {
+            return "not set";
+        }
+        else
+        {
+            return NULL;
+        }
     }
     else if (kd == KEY_DIRECTION_NORMAL)
     {

@@ -5,7 +5,7 @@
  *             packet encryption, packet authentication, and
  *             packet compression.
  *
- *  Copyright (C) 2002-2017 OpenVPN Technologies, Inc. <sales@openvpn.net>
+ *  Copyright (C) 2002-2018 OpenVPN Inc <sales@openvpn.net>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2
@@ -503,6 +503,8 @@ struct options
     const char *priv_key_file;
     const char *pkcs12_file;
     const char *cipher_list;
+    const char *cipher_list_tls13;
+    const char *tls_cert_profile;
     const char *ecdh_curve;
     const char *tls_verify;
     int verify_x509_type;
@@ -815,9 +817,5 @@ void options_string_import(struct options *options,
                            const unsigned int permission_mask,
                            unsigned int *option_types_found,
                            struct env_set *es);
-
-bool get_ipv6_addr( const char *prefix_str, struct in6_addr *network,
-                    unsigned int *netbits, int msglevel );
-
 
 #endif /* ifndef OPTIONS_H */

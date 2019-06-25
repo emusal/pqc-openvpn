@@ -5,9 +5,9 @@
  *             packet encryption, packet authentication, and
  *             packet compression.
  *
- *  Copyright (C) 2002-2017 OpenVPN Technologies, Inc. <sales@openvpn.net>
+ *  Copyright (C) 2002-2018 OpenVPN Inc <sales@openvpn.net>
  *  Copyright (C) 2014-2015 David Sommerseth <davids@redhat.com>
- *  Copyright (C) 2016-2017 David Sommerseth <davids@openvpn.net>
+ *  Copyright (C) 2016-2018 David Sommerseth <davids@openvpn.net>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2
@@ -740,7 +740,7 @@ create_temp_file(const char *directory, const char *prefix, struct gc_arena *gc)
         retfname = gen_path(directory, BSTR(&fname), gc);
         if (!retfname)
         {
-            msg(M_FATAL, "Failed to create temporary filename and path");
+            msg(M_WARN, "Failed to create temporary filename and path");
             return NULL;
         }
 
@@ -755,14 +755,14 @@ create_temp_file(const char *directory, const char *prefix, struct gc_arena *gc)
         else if (fd == -1 && errno != EEXIST)
         {
             /* Something else went wrong, no need to retry.  */
-            msg(M_FATAL | M_ERRNO, "Could not create temporary file '%s'",
+            msg(M_WARN | M_ERRNO, "Could not create temporary file '%s'",
                 retfname);
             return NULL;
         }
     }
     while (attempts < 6);
 
-    msg(M_FATAL, "Failed to create temporary file after %i attempts", attempts);
+    msg(M_WARN, "Failed to create temporary file after %i attempts", attempts);
     return NULL;
 }
 
@@ -1261,7 +1261,7 @@ purge_user_pass(struct user_pass *up, const bool force)
      * don't show warning if the pass has been replaced by a token: this is an
      * artificial "auth-nocache"
      */
-    else if (!warn_shown && (!up->tokenized))
+    else if (!warn_shown)
     {
         msg(M_WARN, "WARNING: this configuration may cache passwords in memory -- use the auth-nocache option to prevent this");
         warn_shown = true;
@@ -1269,14 +1269,18 @@ purge_user_pass(struct user_pass *up, const bool force)
 }
 
 void
-set_auth_token(struct user_pass *up, const char *token)
+set_auth_token(struct user_pass *up, struct user_pass *tk, const char *token)
 {
-    if (token && strlen(token) && up && up->defined && !up->nocache)
+
+    if (token && strlen(token) && up && up->defined)
     {
-        CLEAR(up->password);
-        strncpynt(up->password, token, USER_PASS_LEN);
-        up->tokenized = true;
+        strncpynt(tk->password, token, USER_PASS_LEN);
+        strncpynt(tk->username, up->username, USER_PASS_LEN);
+        tk->defined = true;
     }
+
+    /* Cleans user/pass for nocache */
+    purge_user_pass(up, false);
 }
 
 /*
