@@ -668,26 +668,40 @@ tls_ctx_load_ecdh_params(struct tls_root_ctx *ctx, const char *curve_name
         sname = "(Unknown)";
     }
 
-    /* Create new EC key and set as ECDH key */
-    if (NID_undef == nid || NULL == (ecdh = EC_KEY_new_by_curve_name(nid)))
+    /* Check if this is a post-quantum algorithm from OQS */
+    if (nid >= NID_oqs_kem_default && nid < NID_oqs_sig_default)
     {
-        /* Creating key failed, fall back on sane default */
-        ecdh = EC_KEY_new_by_curve_name(NID_secp384r1);
-        const char *source = (NULL == curve_name) ?
+        /* Set the specified "curve" for TLS */
+        int nid_list[1] = {nid};
+        if (!SSL_CTX_set1_curves(ctx->ctx, nid_list, 1))
+	{
+	    crypto_msg(M_FATAL, "SSL_: cannot set curve");
+	}
+        msg(D_TLS_DEBUG_LOW, "PQC key exchange alg %s added", sname);
+    }
+    else /* not a PQC alg, revert to normal EC processing */
+    {
+        /* Create new EC key and set as ECDH key */
+        if (NID_undef == nid || NULL == (ecdh = EC_KEY_new_by_curve_name(nid)))
+        {
+            /* Creating key failed, fall back on sane default */
+            ecdh = EC_KEY_new_by_curve_name(NID_secp384r1);
+            const char *source = (NULL == curve_name) ?
                              "extract curve from certificate" : "use supplied curve";
-        msg(D_TLS_DEBUG_LOW,
-            "Failed to %s (%s), using secp384r1 instead.", source, sname);
-        sname = OBJ_nid2sn(NID_secp384r1);
+            msg(D_TLS_DEBUG_LOW,
+                "Failed to %s (%s), using secp384r1 instead.", source, sname);
+            sname = OBJ_nid2sn(NID_secp384r1);
+        }
+
+        if (!SSL_CTX_set_tmp_ecdh(ctx->ctx, ecdh))
+        {
+            crypto_msg(M_FATAL, "SSL_CTX_set_tmp_ecdh: cannot add curve");
+        }
+
+        msg(D_TLS_DEBUG_LOW, "ECDH curve %s added", sname);
+
+        EC_KEY_free(ecdh);
     }
-
-    if (!SSL_CTX_set_tmp_ecdh(ctx->ctx, ecdh))
-    {
-        crypto_msg(M_FATAL, "SSL_CTX_set_tmp_ecdh: cannot add curve");
-    }
-
-    msg(D_TLS_DEBUG_LOW, "ECDH curve %s added", sname);
-
-    EC_KEY_free(ecdh);
 #else  /* ifndef OPENSSL_NO_EC */
     msg(D_LOW, "Your OpenSSL library was built without elliptic curve support."
         " Skipping ECDH parameter loading.");
