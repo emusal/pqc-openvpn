@@ -1797,17 +1797,36 @@ void
 print_details(struct key_state_ssl *ks_ssl, const char *prefix)
 {
     const SSL_CIPHER *ciph;
+    int group_id;
     X509 *cert;
     char s1[256];
     char s2[256];
 
     s1[0] = s2[0] = 0;
     ciph = SSL_get_current_cipher(ks_ssl->ssl);
-    openvpn_snprintf(s1, sizeof(s1), "%s %s, cipher %s %s",
-                     prefix,
-                     SSL_get_version(ks_ssl->ssl),
-                     SSL_CIPHER_get_version(ciph),
-                     SSL_CIPHER_get_name(ciph));
+    group_id = SSL_get_shared_group(ks_ssl->ssl, 0);
+    /* SSL_get_shared_group only works server-side, and returns zero on the client.
+     * Don't print it client-side to prevent confusion. There doesn't appear to be a supported
+     * API client-side to retrieve the EC group (which is what PQ keyex algorithms pretend to be)
+     * which was actually used to do the key exchange.
+     */
+    if (group_id != 0)
+    {
+        openvpn_snprintf(s1, sizeof(s1), "%s %s, cipher %s %s, group_id %d",
+                         prefix,
+                         SSL_get_version(ks_ssl->ssl),
+                         SSL_CIPHER_get_version(ciph),
+                         SSL_CIPHER_get_name(ciph),
+                         group_id);
+    }
+    else
+    {
+        openvpn_snprintf(s1, sizeof(s1), "%s %s, cipher %s %s",
+                         prefix,
+                         SSL_get_version(ks_ssl->ssl),
+                         SSL_CIPHER_get_version(ciph),
+                         SSL_CIPHER_get_name(ciph));
+    }
     cert = SSL_get_peer_certificate(ks_ssl->ssl);
     if (cert != NULL)
     {
