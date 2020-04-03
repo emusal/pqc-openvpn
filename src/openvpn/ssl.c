@@ -724,10 +724,7 @@ init_ssl(const struct options *options, struct tls_root_ctx *new_ctx)
     }
 
     /* Once keys and cert are loaded, load ECDH parameters */
-    if (options->tls_server)
-    {
-        tls_ctx_load_ecdh_params(new_ctx, options->ecdh_curve);
-    }
+    tls_ctx_load_ecdh_params(new_ctx, options->ecdh_curve);
 
 #ifdef ENABLE_CRYPTO_MBEDTLS
     /* Personalise the random by mixing in the certificate */
