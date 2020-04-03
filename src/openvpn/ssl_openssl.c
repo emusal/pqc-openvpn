@@ -613,7 +613,8 @@ tls_ctx_load_ecdh_params(struct tls_root_ctx *ctx, const char *curve_name
                          )
 {
 #ifndef OPENSSL_NO_EC
-    int nid = NID_undef;
+    /* PQCrypto-VPN: default to sikep434 if no ecdh-curve directive is present */
+    int nid = NID_p256_sikep434;
     EC_KEY *ecdh = NULL;
     const char *sname = NULL;
 
@@ -674,10 +675,13 @@ tls_ctx_load_ecdh_params(struct tls_root_ctx *ctx, const char *curve_name
         /* Set the specified "curve" for TLS */
         int nid_list[1] = {nid};
         if (!SSL_CTX_set1_curves(ctx->ctx, nid_list, 1))
-	{
-	    crypto_msg(M_FATAL, "SSL_: cannot set curve");
-	}
-        msg(D_TLS_DEBUG_LOW, "PQC key exchange alg %s added", sname);
+        {
+            crypto_msg(M_FATAL, "SSL_CTX_set1_curves: cannot set curve");
+        }
+        else
+        {
+            msg(D_TLS_DEBUG_LOW, "PQC key exchange alg %s set", sname);
+        }
     }
     else /* not a PQC alg, revert to normal EC processing */
     {
@@ -1812,12 +1816,13 @@ print_details(struct key_state_ssl *ks_ssl, const char *prefix)
      */
     if (group_id != 0)
     {
-        openvpn_snprintf(s1, sizeof(s1), "%s %s, cipher %s %s, group_id %d",
+        openvpn_snprintf(s1, sizeof(s1), "%s %s, cipher %s %s, group_id %d (%spost-quantum key exchange)",
                          prefix,
                          SSL_get_version(ks_ssl->ssl),
                          SSL_CIPHER_get_version(ciph),
                          SSL_CIPHER_get_name(ciph),
-                         group_id);
+                         group_id,
+                         (group_id >= NID_oqs_kem_default && group_id < NID_oqs_sig_default)?"":"NOT ");
     }
     else
     {
