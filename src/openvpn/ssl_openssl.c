@@ -613,8 +613,7 @@ tls_ctx_load_ecdh_params(struct tls_root_ctx *ctx, const char *curve_name
                          )
 {
 #ifndef OPENSSL_NO_EC
-    /* PQCrypto-VPN: default to sikep434 if no ecdh-curve directive is present */
-    int nid = NID_p256_sikep434;
+    int nid = NID_undef;
     EC_KEY *ecdh = NULL;
     const char *sname = NULL;
 
