@@ -671,8 +671,10 @@ tls_ctx_load_ecdh_params(struct tls_root_ctx *ctx, const char *curve_name
         sname = "(Unknown)";
     }
 
-    /* Check if this is a post-quantum algorithm from OQS */
-    if (nid >= NID_oqs_kem_default && nid < NID_oqs_sig_default)
+    /* Check if this is a post-quantum algorithm from OQS. This assumes KEMs will always have the highest NIDs, hence no upper bound;
+     * this is true as of OQS-OpenSSL 1.1.1-rc2. If this ever changes, update this if check to reflect the correct range of NIDs for KEMs.
+     * NIDs are located in OpenSSL's include/openssl/obj_mac.h. */
+    if (nid >= NID_oqs_kem_default)
     {
         /* Set the specified "curve" for TLS */
         int nid_list[1] = {nid};
@@ -1852,7 +1854,7 @@ print_details(struct key_state_ssl *ks_ssl, const char *prefix)
                          SSL_CIPHER_get_version(ciph),
                          SSL_CIPHER_get_name(ciph),
                          group_id,
-                         (group_id >= NID_oqs_kem_default && group_id < NID_oqs_sig_default)?"":"NOT ");
+                         (group_id >= NID_oqs_kem_default)?"":"NOT ");
     }
     else
     {
