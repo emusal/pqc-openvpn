@@ -5,8 +5,8 @@
  *             packet encryption, packet authentication, and
  *             packet compression.
  *
- *  Copyright (C) 2002-2017 OpenVPN Technologies, Inc. <sales@openvpn.net>
- *  Copyright (C) 2010-2017 Fox Crypto B.V. <openvpn@fox-it.com>
+ *  Copyright (C) 2002-2018 OpenVPN Inc <sales@openvpn.net>
+ *  Copyright (C) 2010-2018 Fox Crypto B.V. <openvpn@fox-it.com>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2
@@ -78,7 +78,7 @@
 /*
  * Define number of buffers for send and receive in the reliability layer.
  */
-#define TLS_RELIABLE_N_SEND_BUFFERS  4 /* also window size for reliablity layer */
+#define TLS_RELIABLE_N_SEND_BUFFERS  4 /* also window size for reliability layer */
 #define TLS_RELIABLE_N_REC_BUFFERS   8
 
 /*
@@ -438,6 +438,8 @@ void ssl_set_auth_token(const char *token);
  */
 void ssl_purge_auth_challenge(void);
 
+bool ssl_clean_auth_token(void);
+
 void ssl_put_auth_challenge(const char *cr_str);
 
 #endif
@@ -471,17 +473,21 @@ void tls_update_remote_addr(struct tls_multi *multi,
 
 /**
  * Update TLS session crypto parameters (cipher and auth) and derive data
- * channel keys based on the supplied options.
+ * channel keys based on the supplied options. Does nothing if keys are already
+ * generated.
  *
- * @param session       The TLS session to update.
- * @param options       The options to use when updating session.
- * @param frame         The frame options for this session (frame overhead is
- *                      adjusted based on the selected cipher/auth).
+ * @param session         The TLS session to update.
+ * @param options         The options to use when updating session.
+ * @param frame           The frame options for this session (frame overhead is
+ *                        adjusted based on the selected cipher/auth).
+ * @param frame_fragment  The fragment frame options.
  *
- * @return true if updating succeeded, false otherwise.
+ * @return true if updating succeeded or keys are already generated, false otherwise.
  */
 bool tls_session_update_crypto_params(struct tls_session *session,
-                                      struct options *options, struct frame *frame);
+                                      struct options *options,
+                                      struct frame *frame,
+                                      struct frame *frame_fragment);
 
 /**
  * "Poor man's NCP": Use peer cipher if it is an allowed (NCP) cipher.
@@ -600,6 +606,19 @@ bool is_hard_reset(int op, int key_method);
 
 void delayed_auth_pass_purge(void);
 
+
+/*
+ * Show the TLS ciphers that are available for us to use in the SSL
+ * library with headers hinting their usage and warnings about usage.
+ *
+ * @param cipher_list       list of allowed TLS cipher, or NULL.
+ * @param cipher_list_tls13 list of allowed TLS 1.3+ cipher, or NULL
+ * @param tls_cert_profile  TLS certificate crypto profile name.
+ */
+void
+show_available_tls_ciphers(const char *cipher_list,
+                           const char *cipher_list_tls13,
+                           const char *tls_cert_profile);
 #endif /* ENABLE_CRYPTO */
 
 #endif /* ifndef OPENVPN_SSL_H */

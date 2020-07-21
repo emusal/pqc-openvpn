@@ -5,7 +5,7 @@
  *             packet encryption, packet authentication, and
  *             packet compression.
  *
- *  Copyright (C) 2002-2017 OpenVPN Technologies, Inc. <sales@openvpn.net>
+ *  Copyright (C) 2002-2018 OpenVPN Inc <sales@openvpn.net>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2
@@ -56,6 +56,11 @@ struct env_set {
 #define S_FATAL  (1<<1)
 
 const char *system_error_message(int, struct gc_arena *gc);
+
+/* openvpn_execve return codes */
+#define OPENVPN_EXECVE_ERROR       -1 /* generic error while forking to run an external program */
+#define OPENVPN_EXECVE_NOT_ALLOWED -2 /* external program not run due to script security */
+#define OPENVPN_EXECVE_FAILURE    127 /* exit code passed back from child when execve fails */
 
 /* wrapper around the execve() call */
 int openvpn_popen(const struct argv *a,  const struct env_set *es);
@@ -173,7 +178,6 @@ struct user_pass
 {
     bool defined;
     bool nocache;
-    bool tokenized; /* true if password has been substituted by a token */
     bool wait_for_push; /* true if this object is waiting for a push-reply */
 
 /* max length of username/password */
@@ -255,7 +259,8 @@ void fail_user_pass(const char *prefix,
 
 void purge_user_pass(struct user_pass *up, const bool force);
 
-void set_auth_token(struct user_pass *up, const char *token);
+void set_auth_token(struct user_pass *up, struct user_pass *tk,
+                    const char *token);
 
 /*
  * Process string received by untrusted peer before

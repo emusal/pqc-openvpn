@@ -5,8 +5,8 @@
  *             packet encryption, packet authentication, and
  *             packet compression.
  *
- *  Copyright (C) 2002-2017 OpenVPN Technologies, Inc. <sales@openvpn.net>
- *  Copyright (C) 2010-2017 Fox Crypto B.V. <openvpn@fox-it.com>
+ *  Copyright (C) 2002-2018 OpenVPN Inc <sales@openvpn.net>
+ *  Copyright (C) 2010-2018 Fox Crypto B.V. <openvpn@fox-it.com>
  *  Copyright (C) 2008-2013 David Sommerseth <dazo@users.sourceforge.net>
  *  Portions Copyright (C) 2018 Microsoft Corporation
  *
@@ -236,36 +236,6 @@ static const tls_cipher_name_pair tls_cipher_name_translation_table[] = {
     {"SRP-RSA-3DES-EDE-CBC-SHA", "TLS-SRP-SHA-RSA-WITH-3DES-EDE-CBC-SHA"},
     {"SRP-RSA-AES-128-CBC-SHA", "TLS-SRP-SHA-RSA-WITH-AES-128-CBC-SHA"},
     {"SRP-RSA-AES-256-CBC-SHA", "TLS-SRP-SHA-RSA-WITH-AES-256-CBC-SHA"},
-    /*
-     * Non-standard, post-quantum cipher suites, provided by the OQS fork of OpenSSL.
-     * https://github.com/open-quantum-safe/openssl
-     */
-    {"OQSKEX-SIDH-MSR-ECDHE-RSA-AES256-GCM-SHA384", "OQSKEX-SIDH-MSR-ECDHE-RSA-AES256-GCM-SHA384"},
-    {"OQSKEX-LWE-FRODO-RECOMMENDED-ECDHE-RSA-AES256-GCM-SHA384", "OQSKEX-LWE-FRODO-RECOMMENDED-ECDHE-RSA-AES256-GCM-SHA384"},
-    {"OQSKEX-RLWE-BCNS15-ECDHE-RSA-AES256-GCM-SHA384", "OQSKEX-RLWE-BCNS15-ECDHE-RSA-AES256-GCM-SHA384"},
-    {"OQSKEX-RLWE-NEWHOPE-ECDHE-RSA-AES256-GCM-SHA384", "OQSKEX-RLWE-NEWHOPE-ECDHE-RSA-AES256-GCM-SHA384"},
-    {"OQSKEX-RLWE-MSRLN16-ECDHE-RSA-AES256-GCM-SHA384", "OQSKEX-RLWE-MSRLN16-ECDHE-RSA-AES256-GCM-SHA384"},
-    {"OQSKEX-SIDH-IQC-REF-ECDHE-RSA-WITH-AES-256-GCM-SHA384", "OQSKEX-SIDH-IQC-REF-ECDHE-RSA-WITH-AES-256-GCM-SHA384"},
-    {"OQSKEX-CODE-MCBITS-ECDHE-RSA-WITH-AES-256-GCM-SHA384", "OQSKEX-CODE-MCBITS-ECDHE-RSA-WITH-AES-256-GCM-SHA384"},
-    {"OQSKEX-NTRU-ECDHE-RSA-WITH-AES-256-GCM-SHA384", "OQSKEX-NTRU-ECDHE-RSA-WITH-AES-256-GCM-SHA384"},
-    {"OQSKEX-MLWE-KYBER-ECDHE-RSA-WITH-AES-256-GCM-SHA384", "OQSKEX-MLWE-KYBER-ECDHE-RSA-WITH-AES-256-GCM-SHA384"},
-    /* same list as above, but with ECDSA instead of RSA */
-    {"OQSKEX-SIDH-MSR-ECDHE-ECDSA-AES256-GCM-SHA384", "OQSKEX-SIDH-MSR-ECDHE-ECDSA-AES256-GCM-SHA384"},
-    {"OQSKEX-LWE-FRODO-RECOMMENDED-ECDHE-ECDSA-AES256-GCM-SHA384", "OQSKEX-LWE-FRODO-RECOMMENDED-ECDHE-ECDSA-AES256-GCM-SHA384"},
-    {"OQSKEX-RLWE-BCNS15-ECDHE-ECDSA-AES256-GCM-SHA384", "OQSKEX-RLWE-BCNS15-ECDHE-ECDSA-AES256-GCM-SHA384"},
-    {"OQSKEX-RLWE-NEWHOPE-ECDHE-ECDSA-AES256-GCM-SHA384", "OQSKEX-RLWE-NEWHOPE-ECDHE-ECDSA-AES256-GCM-SHA384"},
-    {"OQSKEX-RLWE-MSRLN16-ECDHE-ECDSA-AES256-GCM-SHA384", "OQSKEX-RLWE-MSRLN16-ECDHE-ECDSA-AES256-GCM-SHA384"},
-    {"OQSKEX-SIDH-IQC-REF-ECDHE-ECDSA-WITH-AES-256-GCM-SHA384", "OQSKEX-SIDH-IQC-REF-ECDHE-ECDSA-WITH-AES-256-GCM-SHA384"},
-    {"OQSKEX-CODE-MCBITS-ECDHE-ECDSA-WITH-AES-256-GCM-SHA384", "OQSKEX-CODE-MCBITS-ECDHE-ECDSA-WITH-AES-256-GCM-SHA384"},
-    {"OQSKEX-NTRU-ECDHE-ECDSA-WITH-AES-256-GCM-SHA384", "OQSKEX-NTRU-ECDHE-ECDSA-WITH-AES-256-GCM-SHA384"},
-    {"OQSKEX-MLWE-KYBER-ECDHE-ECDSA-WITH-AES-256-GCM-SHA384", "OQSKEX-MLWE-KYBER-ECDHE-ECDSA-WITH-AES-256-GCM-SHA384"},
-    /* Picnic-capable ciphersuites */
-    {"OQSKEX-LWE-FRODO-RECOMMENDED-PICNIC-AES256-GCM-SHA384", "OQSKEX-LWE-FRODO-RECOMMENDED-PICNIC-AES256-GCM-SHA384"},
-    {"OQSKEX-RLWE-MSRLN16-PICNIC-AES256-GCM-SHA384", "OQSKEX-RLWE-MSRLN16-PICNIC-AES256-GCM-SHA384"},
-    {"OQSKEX-SIDH-MSR-PICNIC-AES256-GCM-SHA384", "OQSKEX-SIDH-MSR-PICNIC-AES256-GCM-SHA384"},
-    {"OQSKEX-LWE-FRODO-RECOMMENDED-ECDHE-PICNIC-AES256-GCM-SHA384", "OQSKEX-LWE-FRODO-RECOMMENDED-ECDHE-PICNIC-AES256-GCM-SHA384"},
-    {"OQSKEX-RLWE-MSRLN16-ECDHE-PICNIC-AES256-GCM-SHA384", "OQSKEX-RLWE-MSRLN16-ECDHE-PICNIC-AES256-GCM-SHA384"},
-    {"OQSKEX-SIDH-MSR-ECDHE-PICNIC-AES256-GCM-SHA384", "OQSKEX-SIDH-MSR-ECDHE-PICNIC-AES256-GCM-SHA384"},
 #ifdef ENABLE_CRYPTO_OPENSSL
     /* OpenSSL-specific group names */
     {"DEFAULT", "DEFAULT"},
@@ -431,6 +401,7 @@ pem_password_callback(char *buf, int size, int rwflag, void *u)
 
 static bool auth_user_pass_enabled;     /* GLOBAL */
 static struct user_pass auth_user_pass; /* GLOBAL */
+static struct user_pass auth_token;     /* GLOBAL */
 
 #ifdef ENABLE_CLIENT_CR
 static char *auth_challenge; /* GLOBAL */
@@ -440,7 +411,7 @@ void
 auth_user_pass_setup(const char *auth_file, const struct static_challenge_info *sci)
 {
     auth_user_pass_enabled = true;
-    if (!auth_user_pass.defined)
+    if (!auth_user_pass.defined && !auth_token.defined)
     {
 #if AUTO_USERID
         get_user_pass_auto_userid(&auth_user_pass, auth_file);
@@ -482,7 +453,7 @@ ssl_set_auth_nocache(void)
 {
     passbuf.nocache = true;
     auth_user_pass.nocache = true;
-    /* wait for push-reply, because auth-token may invert nocache */
+    /* wait for push-reply, because auth-token may still need the username */
     auth_user_pass.wait_for_push = true;
 }
 
@@ -492,15 +463,18 @@ ssl_set_auth_nocache(void)
 void
 ssl_set_auth_token(const char *token)
 {
-    if (auth_user_pass.nocache)
-    {
-        msg(M_INFO,
-            "auth-token received, disabling auth-nocache for the "
-            "authentication token");
-        auth_user_pass.nocache = false;
-    }
+    set_auth_token(&auth_user_pass, &auth_token, token);
+}
 
-    set_auth_token(&auth_user_pass, token);
+/*
+ * Cleans an auth token and checks if it was active
+ */
+bool
+ssl_clean_auth_token (void)
+{
+    bool wasdefined = auth_token.defined;
+    purge_user_pass(&auth_token, true);
+    return wasdefined;
 }
 
 /*
@@ -560,6 +534,10 @@ tls_version_parse(const char *vstr, const char *extra)
     else if (!strcmp(vstr, "1.2") && TLS_VER_1_2 <= max_version)
     {
         return TLS_VER_1_2;
+    }
+    else if (!strcmp(vstr, "1.3") && TLS_VER_1_3 <= max_version)
+    {
+        return TLS_VER_1_3;
     }
     else if (extra && !strcmp(extra, "or-highest"))
     {
@@ -647,12 +625,19 @@ init_ssl(const struct options *options, struct tls_root_ctx *new_ctx)
         tls_ctx_client_new(new_ctx);
     }
 
+    /* Restrict allowed certificate crypto algorithms */
+    tls_ctx_set_cert_profile(new_ctx, options->tls_cert_profile);
+
     /* Allowable ciphers */
-    /* Since @SECLEVEL also influces loading of certificates, set the
+    /* Since @SECLEVEL also influences loading of certificates, set the
      * cipher restrictions before loading certificates */
     tls_ctx_restrict_ciphers(new_ctx, options->cipher_list);
+    tls_ctx_restrict_ciphers_tls13(new_ctx, options->cipher_list_tls13);
 
-    tls_ctx_set_options(new_ctx, options->ssl_flags);
+    if (!tls_ctx_set_options(new_ctx, options->ssl_flags))
+    {
+        goto err;
+    }
 
     if (options->pkcs12_file)
     {
@@ -739,10 +724,7 @@ init_ssl(const struct options *options, struct tls_root_ctx *new_ctx)
     }
 
     /* Once keys and cert are loaded, load ECDH parameters */
-    if (options->tls_server)
-    {
-        tls_ctx_load_ecdh_params(new_ctx, options->ecdh_curve);
-    }
+    tls_ctx_load_ecdh_params(new_ctx, options->ecdh_curve);
 
 #ifdef ENABLE_CRYPTO_MBEDTLS
     /* Personalise the random by mixing in the certificate */
@@ -1978,8 +1960,15 @@ cleanup:
 
 bool
 tls_session_update_crypto_params(struct tls_session *session,
-                                 struct options *options, struct frame *frame)
+                                 struct options *options, struct frame *frame,
+                                 struct frame *frame_fragment)
 {
+    if (session->key[KS_PRIMARY].crypto_options.key_ctx_bi.initialized)
+    {
+        /* keys already generated, nothing to do */
+        return true;
+    }
+
     if (!session->opt->server
         && 0 != strcmp(options->ciphername, session->opt->config_ciphername)
         && !tls_item_in_cipher_list(options->ciphername, options->ncp_ciphers))
@@ -2014,13 +2003,29 @@ tls_session_update_crypto_params(struct tls_session *session,
     }
 
     /* Update frame parameters: undo worst-case overhead, add actual overhead */
-    frame_add_to_extra_frame(frame, -(crypto_max_overhead()));
+    frame_remove_from_extra_frame(frame, crypto_max_overhead());
     crypto_adjust_frame_parameters(frame, &session->opt->key_type,
                                    options->use_iv, options->replay, packet_id_long_form);
     frame_finalize(frame, options->ce.link_mtu_defined, options->ce.link_mtu,
                    options->ce.tun_mtu_defined, options->ce.tun_mtu);
     frame_init_mssfix(frame, options);
     frame_print(frame, D_MTU_INFO, "Data Channel MTU parms");
+
+    /*
+     * mssfix uses data channel framing, which at this point contains
+     * actual overhead. Fragmentation logic uses frame_fragment, which
+     * still contains worst case overhead. Replace it with actual overhead
+     * to prevent unneeded fragmentation.
+     */
+
+    if (frame_fragment)
+    {
+        frame_remove_from_extra_frame(frame_fragment, crypto_max_overhead());
+        crypto_adjust_frame_parameters(frame_fragment, &session->opt->key_type,
+                                       options->use_iv, options->replay, packet_id_long_form);
+        frame_set_mtu_dynamic(frame_fragment, options->ce.fragment, SET_MTU_UPPER_BOUND);
+        frame_print(frame_fragment, D_MTU_INFO, "Fragmentation MTU parms");
+    }
 
     return tls_session_generate_data_channel_keys(session);
 }
@@ -2402,19 +2407,26 @@ key_method_2_write(struct buffer *buf, struct tls_session *session)
 #else
         auth_user_pass_setup(session->opt->auth_user_pass_file, NULL);
 #endif
-        if (!write_string(buf, auth_user_pass.username, -1))
+        struct user_pass *up = &auth_user_pass;
+
+        /*
+         * If we have a valid auth-token, send that instead of real
+         * username/password
+         */
+        if (auth_token.defined)
+            up = &auth_token;
+
+        if (!write_string(buf, up->username, -1))
         {
             goto error;
         }
-        if (!write_string(buf, auth_user_pass.password, -1))
+        else if (!write_string(buf, up->password, -1))
         {
             goto error;
         }
         /* if auth-nocache was specified, the auth_user_pass object reaches
          * a "complete" state only after having received the push-reply
          * message.
-         * This is the case because auth-token statement in a push-reply would
-         * invert its nocache.
          *
          * For this reason, skip the purge operation here if no push-reply
          * message has been received yet.
@@ -2967,6 +2979,9 @@ tls_process(struct tls_multi *multi,
             {
                 state_change = true;
                 dmsg(D_TLS_DEBUG, "TLS -> Incoming Plaintext");
+
+                /* More data may be available, wake up again asap to check. */
+                *wakeup = 0;
             }
         }
 
@@ -3386,7 +3401,7 @@ tls_pre_decrypt(struct tls_multi *multi,
                 {
                     if (!ks->crypto_options.key_ctx_bi.initialized)
                     {
-                        msg(D_TLS_DEBUG_LOW,
+                        msg(D_MULTI_DROPPED,
                             "Key %s [%d] not initialized (yet), dropping packet.",
                             print_link_socket_actual(from, &gc), key_id);
                         goto error_lite;
@@ -3682,8 +3697,8 @@ tls_pre_decrypt(struct tls_multi *multi,
             }
 
             /*
-             * We have an authenticated packet (if --tls-auth was set).
-             * Now pass to our reliability level which deals with
+             * We have an authenticated control channel packet (if --tls-auth was set).
+             * Now pass to our reliability layer which deals with
              * packet acknowledgements, retransmits, sequencing, etc.
              */
             {
@@ -4143,6 +4158,30 @@ tls_check_ncp_cipher_list(const char *list)
     free(tmp_ciphers);
 
     return 0 < strlen(list) && !unsupported_cipher_found;
+}
+
+void
+show_available_tls_ciphers(const char *cipher_list,
+                           const char *cipher_list_tls13,
+                           const char *tls_cert_profile)
+{
+    printf("Available TLS Ciphers, listed in order of preference:\n");
+
+#if (ENABLE_CRYPTO_OPENSSL && OPENSSL_VERSION_NUMBER >= 0x1010100fL)
+    printf("\nFor TLS 1.3 and newer (--tls-ciphersuites):\n\n");
+    show_available_tls_ciphers_list(cipher_list_tls13, tls_cert_profile, true);
+#else
+    (void) cipher_list_tls13;  /* Avoid unused warning */
+#endif
+
+    printf("\nFor TLS 1.2 and older (--tls-cipher):\n\n");
+    show_available_tls_ciphers_list(cipher_list, tls_cert_profile, false);
+
+    printf("\n"
+    "Be aware that that whether a cipher suite in this list can actually work\n"
+    "depends on the specific setup of both peers. See the man page entries of\n"
+    "--tls-cipher and --show-tls for more details.\n\n"
+    );
 }
 
 /*

@@ -133,10 +133,6 @@ keying-material-exporter
     Keying Material Exporter [RFC-5705] allow additional keying material to be
     derived from existing TLS channel.
 
-Mac OS X Keychain management client
-    Added contrib/keychain-mcd which allows to use Mac OS X keychain
-    certificates with OpenVPN.
-
 Android platform support
     Support for running on Android using Android's VPNService API has been added.
     See doc/android.txt for more details. This support is primarily used in
@@ -323,6 +319,247 @@ Maintainer-visible changes
   header combinations.  In most of these situations it is recommended to
   use -std=gnu99 in CFLAGS.  This is known to be needed when doing
   i386/i686 builds on RHEL5.
+
+
+Version 2.4.9
+=============
+This is primarily a maintenance release with minor bugfixes and improvements.
+
+New features
+------------
+- Allow unicode search string in --cryptoapicert option (Windows)
+
+User visible changes
+--------------------
+- Skip expired certificates in Windows certificate store (Windows) (trac #966)
+
+- OpenSSL: Fix --crl-verify not loading multiple CRLs in one file (trac #623)
+
+- When using "--auth-user-pass file" with just a username and no password
+  in the file, OpenVPN now queries the management interface (if active)
+  for the credentials.  Previously it would query the console for the 
+  password, and fail if no console available (normal case on Windows)
+  (trac #757)
+
+- Swap the order of checks for validating interactive service user
+  (Windows: check config location before querying domain controller for
+  group membership, which can be slow)
+
+
+Bug fixes
+---------
+- fix condition where a client's session could "float" to a new IP address
+  that is not authorized ("fix illegal client float").
+
+  This can be used to disrupt service to a freshly connected client (no
+  session keys negotiated yet).  It can not be used to inject or steal 
+  VPN traffic.  CVE-2020-11810, trac #1272).
+
+- fix combination of async push (deferred auth) and NCP (trac #1259)
+
+- Fix OpenSSL 1.1.1 not using auto elliptic curve selection (trac #1228)
+
+- Fix OpenSSL error stack handling of tls_ctx_add_extra_certs
+
+- mbedTLS: Make sure TLS session survives move (trac #880)
+
+- Fix OpenSSL private key passphrase notices
+
+- Fix building with --enable-async-push in FreeBSD (trac #1256)
+
+- Fix broken fragmentation logic when using NCP (trac #1140)
+
+
+
+Version 2.4.8
+=============
+This is primarily a maintenance release with minor bugfixes and improvements.
+
+New features
+------------
+- Support compiling with OpenSSL 1.1 without deprecated APIs
+
+- handle PSS padding in cryptoapicert (necessary for TLS >= 1.2)
+
+
+User visible changes
+--------------------
+- do not abort when hitting the combination of "--pull-filter" and
+  "--mode server" (this got hit when starting OpenVPN servers using
+  the windows GUI which installs a pull-filter to force ip-win32)
+
+- increase listen() backlog queue to 32  (improve response behaviour
+  on openvpn servers using TCP that get portscanned)
+
+- fix and enhance documentation (INSTALL, man page, ...)
+
+
+Bug fixes
+---------
+- the combination "IPv6 and proto UDP and SOCKS proxy" did not work - as
+  a workaround, force IPv4 in this case until a full implementation for
+  IPv6-UDP-SOCKS can be made.
+
+- fix IPv6 routes on tap interfaces on OpenSolaris/OpenIndiana
+
+- fix building with LibreSSL
+
+- do not set pkcs11-helper 'safe fork mode' (should fix PIN querying in
+  systemd environments)
+
+- repair windows builds
+
+- repair Darwin builds (remove -no-cpp-precomp flag)
+
+
+
+Version 2.4.7
+=============
+This is primarily a maintenance release with minor bugfixes and improvements.
+
+New features
+------------
+- ifconfig-ipv6(-push): allow using hostnames (in place of IPv6 addresses)
+
+- new option: --ciphersuites to select TLS 1.3 cipher suites
+  (--cipher selects TLS 1.2 and earlier ciphers)
+
+- enable dhcp on tap adapter using interactive service
+  (previously this required a privileged netsh.exe call from OpenVPN)
+
+- clarify and expand management interface documentation
+
+- add Interactive Service developer documentation
+
+
+User visible changes
+--------------------
+- add message explaining early TLS client hello failure (if TLS 1.0
+  only clients try to connect to TLS 1.3 capable servers)
+
+- --show-tls will now display TLS 1.3 and TLS 1.2 ciphers in separate
+  lists (if built with OpenSSL 1.1.1+)
+
+- don't print OCC warnings about 'key-method', 'keydir' and 'tls-auth'
+  (unnecessary warnings, and will cause spurious warnings with tls-crypt-v2)
+
+- bump version of openvpn plugin argument structs to 5
+
+- plugin: Export base64 encode and decode functions
+
+- man: add security considerations to --compress section
+
+
+Bug fixes
+---------
+- print port numbers (again) for incoming IPv4 connections received on
+  a dual-stacked IPv6 socket.  This got lost at some point during 
+  rewrite of the dual-stack code and proper printing of IPv4 addresses.
+
+- fallback to password authentication when auth-token fails
+
+- fix combination of --dev tap and --topology subnet across multiple 
+  platforms (BSDs, MacOS, and Solaris).
+
+- fix Windows CryptoAPI usage for TLS 1.2 signatures
+
+- fix option handling in combination with NCP negotiation and OCC
+  (--opt-verify failure on reconnect if NCP modified options and server
+  verified "original" vs. "modified" options)
+
+- mbedtls: print warning if random personalisation fails
+
+- fix subnet topology on NetBSD (2.4).
+
+
+
+Version 2.4.6
+=============
+This is primarily a maintenance release with minor bugfixes and improvements,
+and one security relevant fix for the Windows Interactive Service.
+
+User visible changes
+--------------------
+- warn if the management interface is configured with a TCP port and
+  no password is set (because it might be possible to interfere with
+  OpenVPN operation by tricking other programs into connecting to the
+  management interface and inject unwanted commands)
+
+Bug fixes
+---------
+- CVE-2018-9336: fix potential double-free() in the Interactive Service
+  (Windows) on malformed input.
+
+- avoid possible integer overflow in wakeup computation (trac #922)
+
+- improve handling of incoming packet bursts for control channel data
+
+- fix compilation with older OpenSSL versions that were broken in 2.4.5
+
+- Windows + interactive Service: delete the IPv6 route to the "connected"
+  network on tun close
+
+
+Version 2.4.5
+=============
+This is primarily a maintenance release, with further improved OpenSSL 1.1
+integration, several minor bug fixes and other minor improvements.
+
+
+New features
+------------
+- The new option ``--tls-cert-profile`` can be used to restrict the set of
+  allowed crypto algorithms in TLS certificates in mbed TLS builds.  The
+  default profile is 'legacy' for now, which allows SHA1+, RSA-1024+ and any
+  elliptic curve certificates.  The default will be changed to the 'preferred'
+  profile in the future, which requires SHA2+, RSA-2048+ and any curve.
+
+- make CryptoAPI support (Windows) compatible with OpenSSL 1.1 builds
+
+- TLS v1.2 support for cryptoapicert (on Windows) -- RSA only
+
+- openvpnserv: Add support for multi-instances (to support multiple
+  parallel OpenVPN installations, like EduVPN and regular OpenVPN)
+
+- Use P_DATA_V2 for server->client packets too (better packet alignment)
+
+- improve management interface documentation
+
+- rework registry key handling for OpenVPN service, notably making most
+  registry values optional, falling back to reasonable defaults
+
+- accept IPv6 address for pushed "dhcp-option DNS ..."
+  (make OpenVPN 2 option compatible with OpenVPN 3 iOS and Android clients)
+
+
+Bug fixes
+---------
+- Fix --tls-version-min and --tls-version-max for OpenSSL 1.1+
+
+- Fix lots of compiler warnings (format string, type casts, ...)
+
+- Fix --redirect-gateway route installation on Windows systems that have
+  multiple interfaces into the same network (e.g. Wifi and wired LAN).
+
+- Fix IPv6 interface route cleanup on Windows
+
+- reload HTTP proxy credentials when moving to the next connection profile
+
+- Fix build with LibreSSL (multiple times)
+
+- Remove non-useful warning on pushed tun-ipv6 option.
+
+- fix building with MSVC due to incompatible C constructs
+
+- autoconf: Fix engine checks for openssl 1.1
+
+- lz4: Rebase compat-lz4 against upstream v1.7.5
+
+- lz4: Fix broken builds when pkg-config is not present but system library is
+
+- Fix '--bind ipv6only'
+
+- Allow learning iroutes with network made up of all 0s
 
 
 Version 2.4.4

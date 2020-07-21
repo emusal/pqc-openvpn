@@ -17,6 +17,7 @@
 Release
 Debug
 Win32-Output
+.vs
 .deps
 .libs
 Makefile
@@ -50,11 +51,11 @@ msvc-env-local.bat
 config-msvc-local.h
 config-msvc-version.h
 doc/openvpn.8.html
-distro/rpm/openvpn.spec
 distro/systemd/*.service
 sample/sample-keys/sample-ca/
-vendor/.build
+vendor/cmocka_build
 vendor/dist
+build/msvc/msvc-generate/version.m4
 
 tests/t_client.sh
 tests/t_client-*-20??????-??????/

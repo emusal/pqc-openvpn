@@ -5,7 +5,7 @@
  *             packet encryption, packet authentication, and
  *             packet compression.
  *
- *  Copyright (C) 2002-2017 OpenVPN Technologies, Inc. <sales@openvpn.net>
+ *  Copyright (C) 2002-2018 OpenVPN Inc <sales@openvpn.net>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2
@@ -496,7 +496,7 @@ encrypt_sign(struct context *c, bool comp_frag)
         /* If using P_DATA_V2, prepend the 1-byte opcode and 3-byte peer-id to the
          * packet before openvpn_encrypt(), so we can authenticate the opcode too.
          */
-        if (c->c2.buf.len > 0 && !c->c2.tls_multi->opt.server && c->c2.tls_multi->use_peer_id)
+        if (c->c2.buf.len > 0 && c->c2.tls_multi->use_peer_id)
         {
             tls_prepend_opcode_v2(c->c2.tls_multi, &b->encrypt_buf);
         }
@@ -512,7 +512,7 @@ encrypt_sign(struct context *c, bool comp_frag)
     /* Do packet administration */
     if (c->c2.tls_multi)
     {
-        if (c->c2.buf.len > 0 && (c->c2.tls_multi->opt.server || !c->c2.tls_multi->use_peer_id))
+        if (c->c2.buf.len > 0 && !c->c2.tls_multi->use_peer_id)
         {
             tls_prepend_opcode_v1(c->c2.tls_multi, &c->c2.buf);
         }
@@ -873,6 +873,9 @@ process_incoming_link_part1(struct context *c, struct link_socket_info *lsi, boo
                 if (is_hard_reset(opcode, c->options.key_method))
                 {
                     c->c2.frame = c->c2.frame_initial;
+#ifdef ENABLE_FRAGMENT
+                    c->c2.frame_fragment = c->c2.frame_fragment_initial;
+#endif
                 }
 
                 interval_action(&c->c2.tmp_int);
@@ -1037,7 +1040,7 @@ read_incoming_tun(struct context *c)
 
     c->c2.buf = c->c2.buffers->read_tun_buf;
 #ifdef TUN_PASS_BUFFER
-    read_tun_buffered(c->c1.tuntap, &c->c2.buf, MAX_RW_SIZE_TUN(&c->c2.frame));
+    read_tun_buffered(c->c1.tuntap, &c->c2.buf);
 #else
     ASSERT(buf_init(&c->c2.buf, FRAME_HEADROOM(&c->c2.frame)));
     ASSERT(buf_safe(&c->c2.buf, MAX_RW_SIZE_TUN(&c->c2.frame)));

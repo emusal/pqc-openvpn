@@ -5,7 +5,7 @@
  *             packet encryption, packet authentication, and
  *             packet compression.
  *
- *  Copyright (C) 2013-2017 Heiko Hund <heiko.hund@sophos.com>
+ *  Copyright (C) 2013-2018 Heiko Hund <heiko.hund@sophos.com>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2
@@ -37,7 +37,8 @@ typedef enum {
     msg_flush_neighbors,
     msg_add_block_dns,
     msg_del_block_dns,
-    msg_register_dns
+    msg_register_dns,
+    msg_enable_dhcp,
 } message_type_t;
 
 typedef struct {
@@ -110,5 +111,10 @@ typedef struct {
     message_header_t header;
     interface_t iface;
 } block_dns_message_t;
+
+typedef struct {
+    message_header_t header;
+    interface_t iface;
+} enable_dhcp_message_t;
 
 #endif /* ifndef OPENVPN_MSG_H_ */

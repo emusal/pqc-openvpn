@@ -5,8 +5,8 @@
  *             packet encryption, packet authentication, and
  *             packet compression.
  *
- *  Copyright (C) 2002-2017 OpenVPN Technologies, Inc. <sales@openvpn.net>
- *  Copyright (C) 2010-2017 Fox Crypto B.V. <openvpn@fox-it.com>
+ *  Copyright (C) 2002-2018 OpenVPN Inc <sales@openvpn.net>
+ *  Copyright (C) 2010-2018 Fox Crypto B.V. <openvpn@fox-it.com>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2
@@ -199,7 +199,16 @@ crypto_print_openssl_errors(const unsigned int flags)
                 "in common with the client. Your --tls-cipher setting might be "
                 "too restrictive.");
         }
-
+        else if (ERR_GET_REASON(err) == SSL_R_UNSUPPORTED_PROTOCOL)
+        {
+            msg(D_CRYPT_ERRORS, "TLS error: Unsupported protocol. This typically "
+                 "indicates that client and server have no common TLS version enabled. "
+                 "This can be caused by mismatched tls-version-min and tls-version-max "
+                 "options on client and server. "
+                 "If your OpenVPN client is between v2.3.6 and v2.3.2 try adding "
+                 "tls-version-min 1.0 to the client configuration to use TLS 1.0+ "
+                 "instead of TLS 1.0 only");
+        }
         msg(flags, "OpenSSL: %s", ERR_error_string(err, NULL));
     }
 }
@@ -665,12 +674,12 @@ cipher_ctx_free(EVP_CIPHER_CTX *ctx)
 }
 
 void
-cipher_ctx_init(EVP_CIPHER_CTX *ctx, uint8_t *key, int key_len,
+cipher_ctx_init(EVP_CIPHER_CTX *ctx, const uint8_t *key, int key_len,
                 const EVP_CIPHER *kt, int enc)
 {
     ASSERT(NULL != kt && NULL != ctx);
 
-    EVP_CIPHER_CTX_init(ctx);
+    EVP_CIPHER_CTX_reset(ctx);
     if (!EVP_CipherInit(ctx, kt, NULL, NULL, enc))
     {
         crypto_msg(M_FATAL, "EVP cipher init #1");
@@ -688,12 +697,6 @@ cipher_ctx_init(EVP_CIPHER_CTX *ctx, uint8_t *key, int key_len,
 
     /* make sure we used a big enough key */
     ASSERT(EVP_CIPHER_CTX_key_length(ctx) <= key_len);
-}
-
-void
-cipher_ctx_cleanup(EVP_CIPHER_CTX *ctx)
-{
-    EVP_CIPHER_CTX_cleanup(ctx);
 }
 
 int

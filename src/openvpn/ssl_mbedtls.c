@@ -5,8 +5,8 @@
  *             packet encryption, packet authentication, and
  *             packet compression.
  *
- *  Copyright (C) 2002-2017 OpenVPN Technologies, Inc. <sales@openvpn.net>
- *  Copyright (C) 2010-2017 Fox Crypto B.V. <openvpn@fox-it.com>
+ *  Copyright (C) 2002-2018 OpenVPN Inc <sales@openvpn.net>
+ *  Copyright (C) 2010-2018 Fox Crypto B.V. <openvpn@fox-it.com>
  *  Copyright (C) 2006-2010, Brainspark B.V.
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -60,7 +60,34 @@
 
 #include <mbedtls/oid.h>
 #include <mbedtls/pem.h>
-#include <mbedtls/sha256.h>
+
+static const mbedtls_x509_crt_profile openvpn_x509_crt_profile_legacy =
+{
+    /* Hashes from SHA-1 and above */
+    MBEDTLS_X509_ID_FLAG( MBEDTLS_MD_SHA1 ) |
+    MBEDTLS_X509_ID_FLAG( MBEDTLS_MD_RIPEMD160 ) |
+    MBEDTLS_X509_ID_FLAG( MBEDTLS_MD_SHA224 ) |
+    MBEDTLS_X509_ID_FLAG( MBEDTLS_MD_SHA256 ) |
+    MBEDTLS_X509_ID_FLAG( MBEDTLS_MD_SHA384 ) |
+    MBEDTLS_X509_ID_FLAG( MBEDTLS_MD_SHA512 ),
+    0xFFFFFFF, /* Any PK alg    */
+    0xFFFFFFF, /* Any curve     */
+    1024,      /* RSA-1024 and larger */
+};
+
+static const mbedtls_x509_crt_profile openvpn_x509_crt_profile_preferred =
+{
+    /* SHA-2 and above */
+    MBEDTLS_X509_ID_FLAG( MBEDTLS_MD_SHA224 ) |
+    MBEDTLS_X509_ID_FLAG( MBEDTLS_MD_SHA256 ) |
+    MBEDTLS_X509_ID_FLAG( MBEDTLS_MD_SHA384 ) |
+    MBEDTLS_X509_ID_FLAG( MBEDTLS_MD_SHA512 ),
+    0xFFFFFFF, /* Any PK alg    */
+    0xFFFFFFF, /* Any curve     */
+    2048,      /* RSA-2048 and larger */
+};
+
+#define openvpn_x509_crt_profile_suiteb mbedtls_x509_crt_profile_suiteb;
 
 void
 tls_init_lib(void)
@@ -178,9 +205,10 @@ key_state_export_keying_material(struct key_state_ssl *ssl,
 {
 }
 
-void
+bool
 tls_ctx_set_options(struct tls_root_ctx *ctx, unsigned int ssl_flags)
 {
+    return true;
 }
 
 static const char *
@@ -201,6 +229,19 @@ tls_translate_cipher_name(const char *cipher_name)
     }
 
     return pair->iana_name;
+}
+
+void
+tls_ctx_restrict_ciphers_tls13(struct tls_root_ctx *ctx, const char *ciphers)
+{
+    if (ciphers == NULL)
+    {
+        /* Nothing to do, return without warning message */
+        return;
+    }
+
+    msg(M_WARN, "mbed TLS does not support setting tls-ciphersuites. "
+                "Ignoring TLS 1.3 cipher list: %s", ciphers);
 }
 
 void
@@ -248,6 +289,27 @@ tls_ctx_restrict_ciphers(struct tls_root_ctx *ctx, const char *ciphers)
         token = strtok(NULL, ":");
     }
     free(tmp_ciphers_orig);
+}
+
+void
+tls_ctx_set_cert_profile(struct tls_root_ctx *ctx, const char *profile)
+{
+    if (!profile || 0 == strcmp(profile, "legacy"))
+    {
+        ctx->cert_profile = openvpn_x509_crt_profile_legacy;
+    }
+    else if (0 == strcmp(profile, "preferred"))
+    {
+        ctx->cert_profile = openvpn_x509_crt_profile_preferred;
+    }
+    else if (0 == strcmp(profile, "suiteb"))
+    {
+        ctx->cert_profile = openvpn_x509_crt_profile_suiteb;
+    }
+    else
+    {
+        msg (M_FATAL, "ERROR: Invalid cert profile: %s", profile);
+    }
 }
 
 void
@@ -581,7 +643,7 @@ tls_ctx_use_external_private_key(struct tls_root_ctx *ctx,
 
     if (ctx->crt_chain == NULL)
     {
-        return 0;
+        return 1;
     }
 
     ALLOC_OBJ_CLEAR(ctx->external_key, struct external_context);
@@ -591,10 +653,10 @@ tls_ctx_use_external_private_key(struct tls_root_ctx *ctx,
     if (!mbed_ok(mbedtls_pk_setup_rsa_alt(ctx->priv_key, ctx->external_key,
                                           NULL, external_pkcs1_sign, external_key_len)))
     {
-        return 0;
+        return 1;
     }
 
-    return 1;
+    return 0;
 }
 #endif /* ifdef MANAGMENT_EXTERNAL_KEY */
 
@@ -801,9 +863,14 @@ tls_ctx_personalise_random(struct tls_root_ctx *ctx)
 
     if (NULL != ctx->crt_chain)
     {
+        const md_kt_t *sha256_kt = md_kt_get("SHA256");
         mbedtls_x509_crt *cert = ctx->crt_chain;
 
-        mbedtls_sha256(cert->tbs.p, cert->tbs.len, sha256_hash, false);
+        if (!md_full(sha256_kt, cert->tbs.p, cert->tbs.len, sha256_hash))
+        {
+            msg(M_WARN, "WARNING: failed to personalise random");
+        }
+
         if (0 != memcmp(old_sha256_hash, sha256_hash, sizeof(sha256_hash)))
         {
             mbedtls_ctr_drbg_update(cd_ctx, sha256_hash, 32);
@@ -907,19 +974,22 @@ key_state_ssl_init(struct key_state_ssl *ks_ssl,
     CLEAR(*ks_ssl);
 
     /* Initialise SSL config */
-    mbedtls_ssl_config_init(&ks_ssl->ssl_config);
-    mbedtls_ssl_config_defaults(&ks_ssl->ssl_config, ssl_ctx->endpoint,
+    ALLOC_OBJ_CLEAR(ks_ssl->ssl_config, mbedtls_ssl_config);
+    mbedtls_ssl_config_init(ks_ssl->ssl_config);
+    mbedtls_ssl_config_defaults(ks_ssl->ssl_config, ssl_ctx->endpoint,
                                 MBEDTLS_SSL_TRANSPORT_STREAM, MBEDTLS_SSL_PRESET_DEFAULT);
 #ifdef MBEDTLS_DEBUG_C
     mbedtls_debug_set_threshold(3);
 #endif
-    mbedtls_ssl_conf_dbg(&ks_ssl->ssl_config, my_debug, NULL);
-    mbedtls_ssl_conf_rng(&ks_ssl->ssl_config, mbedtls_ctr_drbg_random,
+    mbedtls_ssl_conf_dbg(ks_ssl->ssl_config, my_debug, NULL);
+    mbedtls_ssl_conf_rng(ks_ssl->ssl_config, mbedtls_ctr_drbg_random,
                          rand_ctx_get());
+
+    mbedtls_ssl_conf_cert_profile(ks_ssl->ssl_config, &ssl_ctx->cert_profile);
 
     if (ssl_ctx->allowed_ciphers)
     {
-        mbedtls_ssl_conf_ciphersuites(&ks_ssl->ssl_config, ssl_ctx->allowed_ciphers);
+        mbedtls_ssl_conf_ciphersuites(ks_ssl->ssl_config, ssl_ctx->allowed_ciphers);
     }
 
     /* Disable record splitting (for now).  OpenVPN assumes records are sent
@@ -927,35 +997,35 @@ key_state_ssl_init(struct key_state_ssl *ks_ssl,
      * testing.  Since OpenVPN is not susceptible to BEAST, we can just
      * disable record splitting as a quick fix. */
 #if defined(MBEDTLS_SSL_CBC_RECORD_SPLITTING)
-    mbedtls_ssl_conf_cbc_record_splitting(&ks_ssl->ssl_config,
+    mbedtls_ssl_conf_cbc_record_splitting(ks_ssl->ssl_config,
                                           MBEDTLS_SSL_CBC_RECORD_SPLITTING_DISABLED);
 #endif /* MBEDTLS_SSL_CBC_RECORD_SPLITTING */
 
     /* Initialise authentication information */
     if (is_server)
     {
-        mbed_ok(mbedtls_ssl_conf_dh_param_ctx(&ks_ssl->ssl_config,
+        mbed_ok(mbedtls_ssl_conf_dh_param_ctx(ks_ssl->ssl_config,
                                               ssl_ctx->dhm_ctx));
     }
 
-    mbed_ok(mbedtls_ssl_conf_own_cert(&ks_ssl->ssl_config, ssl_ctx->crt_chain,
+    mbed_ok(mbedtls_ssl_conf_own_cert(ks_ssl->ssl_config, ssl_ctx->crt_chain,
                                       ssl_ctx->priv_key));
 
     /* Initialise SSL verification */
 #if P2MP_SERVER
     if (session->opt->ssl_flags & SSLF_CLIENT_CERT_OPTIONAL)
     {
-        mbedtls_ssl_conf_authmode(&ks_ssl->ssl_config, MBEDTLS_SSL_VERIFY_OPTIONAL);
+        mbedtls_ssl_conf_authmode(ks_ssl->ssl_config, MBEDTLS_SSL_VERIFY_OPTIONAL);
     }
     else if (!(session->opt->ssl_flags & SSLF_CLIENT_CERT_NOT_REQUIRED))
 #endif
     {
-        mbedtls_ssl_conf_authmode(&ks_ssl->ssl_config, MBEDTLS_SSL_VERIFY_REQUIRED);
+        mbedtls_ssl_conf_authmode(ks_ssl->ssl_config, MBEDTLS_SSL_VERIFY_REQUIRED);
     }
-    mbedtls_ssl_conf_verify(&ks_ssl->ssl_config, verify_callback, session);
+    mbedtls_ssl_conf_verify(ks_ssl->ssl_config, verify_callback, session);
 
     /* TODO: mbed TLS does not currently support sending the CA chain to the client */
-    mbedtls_ssl_conf_ca_chain(&ks_ssl->ssl_config, ssl_ctx->ca_chain, ssl_ctx->crl);
+    mbedtls_ssl_conf_ca_chain(ks_ssl->ssl_config, ssl_ctx->ca_chain, ssl_ctx->crl);
 
     /* Initialize minimum TLS version */
     {
@@ -972,7 +1042,7 @@ key_state_ssl_init(struct key_state_ssl *ks_ssl,
             tls_version_to_major_minor(tls_version_min, &major, &minor);
         }
 
-        mbedtls_ssl_conf_min_version(&ks_ssl->ssl_config, major, minor);
+        mbedtls_ssl_conf_min_version(ks_ssl->ssl_config, major, minor);
     }
 
     /* Initialize maximum TLS version */
@@ -985,18 +1055,18 @@ key_state_ssl_init(struct key_state_ssl *ks_ssl,
         {
             int major, minor;
             tls_version_to_major_minor(tls_version_max, &major, &minor);
-            mbedtls_ssl_conf_max_version(&ks_ssl->ssl_config, major, minor);
+            mbedtls_ssl_conf_max_version(ks_ssl->ssl_config, major, minor);
         }
     }
 
     /* Initialise SSL context */
     ALLOC_OBJ_CLEAR(ks_ssl->ctx, mbedtls_ssl_context);
     mbedtls_ssl_init(ks_ssl->ctx);
-    mbedtls_ssl_setup(ks_ssl->ctx, &ks_ssl->ssl_config);
+    mbedtls_ssl_setup(ks_ssl->ctx, ks_ssl->ssl_config);
 
     /* Initialise BIOs */
-    CLEAR(ks_ssl->bio_ctx);
-    mbedtls_ssl_set_bio(ks_ssl->ctx, &ks_ssl->bio_ctx, ssl_bio_write,
+    ALLOC_OBJ_CLEAR(ks_ssl->bio_ctx, bio_ctx);
+    mbedtls_ssl_set_bio(ks_ssl->ctx, ks_ssl->bio_ctx, ssl_bio_write,
                         ssl_bio_read, NULL);
 }
 
@@ -1010,9 +1080,17 @@ key_state_ssl_free(struct key_state_ssl *ks_ssl)
             mbedtls_ssl_free(ks_ssl->ctx);
             free(ks_ssl->ctx);
         }
-        mbedtls_ssl_config_free(&ks_ssl->ssl_config);
-        buf_free_entries(&ks_ssl->bio_ctx.in);
-        buf_free_entries(&ks_ssl->bio_ctx.out);
+        if (ks_ssl->ssl_config)
+        {
+            mbedtls_ssl_config_free(ks_ssl->ssl_config);
+            free(ks_ssl->ssl_config);
+        }
+        if (ks_ssl->bio_ctx)
+        {
+            buf_free_entries(&ks_ssl->bio_ctx->in);
+            buf_free_entries(&ks_ssl->bio_ctx->out);
+            free(ks_ssl->bio_ctx);
+        }
         CLEAR(*ks_ssl);
     }
 }
@@ -1107,7 +1185,7 @@ key_state_read_ciphertext(struct key_state_ssl *ks, struct buffer *buf,
         len = maxlen;
     }
 
-    retval = endless_buf_read(&ks->bio_ctx.out, BPTR(buf), len);
+    retval = endless_buf_read(&ks->bio_ctx->out, BPTR(buf), len);
 
     /* Error during read, check for retry error */
     if (retval < 0)
@@ -1152,7 +1230,7 @@ key_state_write_ciphertext(struct key_state_ssl *ks, struct buffer *buf)
         return 0;
     }
 
-    retval = endless_buf_write(&ks->bio_ctx.in, BPTR(buf), buf->len);
+    retval = endless_buf_write(&ks->bio_ctx->in, BPTR(buf), buf->len);
 
     if (retval < 0)
     {
@@ -1271,12 +1349,20 @@ print_details(struct key_state_ssl *ks_ssl, const char *prefix)
 }
 
 void
-show_available_tls_ciphers(const char *cipher_list)
+show_available_tls_ciphers_list(const char *cipher_list,
+                                const char *tls_cert_profile,
+                                bool tls13)
 {
+    if (tls13)
+    {
+        /* mbed TLS has no TLS 1.3 support currently */
+        return;
+    }
     struct tls_root_ctx tls_ctx;
     const int *ciphers = mbedtls_ssl_list_ciphersuites();
 
     tls_ctx_server_new(&tls_ctx);
+    tls_ctx_set_cert_profile(&tls_ctx, tls_cert_profile);
     tls_ctx_restrict_ciphers(&tls_ctx, cipher_list);
 
     if (tls_ctx.allowed_ciphers)
@@ -1284,18 +1370,11 @@ show_available_tls_ciphers(const char *cipher_list)
         ciphers = tls_ctx.allowed_ciphers;
     }
 
-#ifndef ENABLE_SMALL
-    printf("Available TLS Ciphers,\n");
-    printf("listed in order of preference:\n\n");
-#endif
-
     while (*ciphers != 0)
     {
         printf("%s\n", mbedtls_ssl_get_ciphersuite_name(*ciphers));
         ciphers++;
     }
-    printf("\n" SHOW_TLS_CIPHER_LIST_WARNING);
-
     tls_ctx_free(&tls_ctx);
 }
 

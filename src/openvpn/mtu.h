@@ -5,7 +5,7 @@
  *             packet encryption, packet authentication, and
  *             packet compression.
  *
- *  Copyright (C) 2002-2017 OpenVPN Technologies, Inc. <sales@openvpn.net>
+ *  Copyright (C) 2002-2018 OpenVPN Inc <sales@openvpn.net>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2
@@ -271,9 +271,15 @@ frame_add_to_link_mtu(struct frame *frame, const int increment)
 }
 
 static inline void
-frame_add_to_extra_frame(struct frame *frame, const int increment)
+frame_add_to_extra_frame(struct frame *frame, const unsigned int increment)
 {
     frame->extra_frame += increment;
+}
+
+static inline void
+frame_remove_from_extra_frame(struct frame *frame, const unsigned int decrement)
+{
+    frame->extra_frame -= decrement;
 }
 
 static inline void

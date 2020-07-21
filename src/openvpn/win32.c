@@ -5,7 +5,7 @@
  *             packet encryption, packet authentication, and
  *             packet compression.
  *
- *  Copyright (C) 2002-2017 OpenVPN Technologies, Inc. <sales@openvpn.net>
+ *  Copyright (C) 2002-2018 OpenVPN Inc <sales@openvpn.net>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2
@@ -685,11 +685,10 @@ win32_pause(struct win32_signal *ws)
 {
     if (ws->mode == WSO_MODE_CONSOLE && HANDLE_DEFINED(ws->in.read))
     {
-        int status;
         msg(M_INFO|M_NOPREFIX, "Press any key to continue...");
         do
         {
-            status = WaitForSingleObject(ws->in.read, INFINITE);
+            WaitForSingleObject(ws->in.read, INFINITE);
         } while (!win32_keyboard_get(ws));
     }
 }
@@ -1088,7 +1087,7 @@ wide_cmd_line(const struct argv *a, struct gc_arena *gc)
 int
 openvpn_execve(const struct argv *a, const struct env_set *es, const unsigned int flags)
 {
-    int ret = -1;
+    int ret = OPENVPN_EXECVE_ERROR;
     static bool exec_warn = false;
 
     if (a && a->argv[0])
@@ -1137,10 +1136,14 @@ openvpn_execve(const struct argv *a, const struct env_set *es, const unsigned in
             free(env);
             gc_free(&gc);
         }
-        else if (!exec_warn && (script_security < SSEC_SCRIPTS))
+        else
         {
-            msg(M_WARN, SCRIPT_SECURITY_WARNING);
-            exec_warn = true;
+            ret = OPENVPN_EXECVE_NOT_ALLOWED;
+            if (!exec_warn && (script_security < SSEC_SCRIPTS))
+            {
+                msg(M_WARN, SCRIPT_SECURITY_WARNING);
+                exec_warn = true;
+            }
         }
     }
     else
@@ -1344,17 +1347,16 @@ win_wfp_block_dns(const NET_IFINDEX index, const HANDLE msg_channel)
                                    block_dns_msg_handler);
     if (status == 0)
     {
-        tap_metric_v4 = get_interface_metric(index, AF_INET);
-        tap_metric_v6 = get_interface_metric(index, AF_INET6);
-        if (tap_metric_v4 < 0)
+        int is_auto = 0;
+        tap_metric_v4 = get_interface_metric(index, AF_INET, &is_auto);
+        if (is_auto)
         {
-            /* error, should not restore metric */
-            tap_metric_v4 = -1;
+            tap_metric_v4 = 0;
         }
-        if (tap_metric_v6 < 0)
+        tap_metric_v6 = get_interface_metric(index, AF_INET6, &is_auto);
+        if (is_auto)
         {
-            /* error, should not restore metric */
-            tap_metric_v6 = -1;
+            tap_metric_v6 = 0;
         }
         status = set_interface_metric(index, AF_INET, BLOCK_DNS_IFACE_METRIC);
         if (!status)

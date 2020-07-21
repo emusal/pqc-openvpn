@@ -5,7 +5,7 @@
  *             packet encryption, packet authentication, and
  *             packet compression.
  *
- *  Copyright (C) 2002-2017 OpenVPN Technologies, Inc. <sales@openvpn.net>
+ *  Copyright (C) 2002-2018 OpenVPN Inc <sales@openvpn.net>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2
@@ -55,8 +55,20 @@ receive_auth_failed(struct context *c, const struct buffer *buffer)
 
     if (c->options.pull)
     {
-        switch (auth_retry_get())
+        /* Before checking how to react on AUTH_FAILED, first check if the
+         * failed auth might be the result of an expired auth-token.
+         * Note that a server restart will trigger a generic AUTH_FAILED
+         * instead an AUTH_FAILED,SESSION so handle all AUTH_FAILED message
+         * identical for this scenario */
+        if (ssl_clean_auth_token())
         {
+            c->sig->signal_received = SIGUSR1; /* SOFT-SIGUSR1 -- Auth failure error */
+            c->sig->signal_text = "auth-failure (auth-token)";
+        }
+        else
+        {
+            switch (auth_retry_get())
+            {
             case AR_NONE:
                 c->sig->signal_received = SIGTERM; /* SOFT-SIGTERM -- Auth failure error */
                 break;
@@ -70,8 +82,9 @@ receive_auth_failed(struct context *c, const struct buffer *buffer)
 
             default:
                 ASSERT(0);
+            }
+            c->sig->signal_text = "auth-failure";
         }
-        c->sig->signal_text = "auth-failure";
 #ifdef ENABLE_MANAGEMENT
         if (management)
         {
@@ -274,11 +287,16 @@ incoming_push_message(struct context *c, const struct buffer *buffer)
     {
         if (c->options.mode == MODE_SERVER)
         {
+            struct frame *frame_fragment = NULL;
+#ifdef ENABLE_FRAGMENT
+            if (c->options.ce.fragment)
+            {
+                frame_fragment = &c->c2.frame_fragment;
+            }
+#endif
             struct tls_session *session = &c->c2.tls_multi->session[TM_ACTIVE];
-            /* Do not regenerate keys if client send a second push request */
-            if (!session->key[KS_PRIMARY].crypto_options.key_ctx_bi.initialized
-                && !tls_session_update_crypto_params(session, &c->options,
-                                                     &c->c2.frame))
+            if (!tls_session_update_crypto_params(session, &c->options,
+                                                  &c->c2.frame, frame_fragment))
             {
                 msg(D_TLS_ERRORS, "TLS Error: initializing data channel failed");
                 goto error;
@@ -365,6 +383,7 @@ prepare_push_reply(struct context *c, struct gc_arena *gc,
         {
             push_option_fmt(gc, push_list, M_USAGE, "peer-id %d",
                             tls_multi->peer_id);
+            tls_multi->use_peer_id = true;
         }
     }
 

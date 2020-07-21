@@ -5,7 +5,7 @@
  *             packet encryption, packet authentication, and
  *             packet compression.
  *
- *  Copyright (C) 2002-2017 OpenVPN Technologies, Inc. <sales@openvpn.net>
+ *  Copyright (C) 2002-2018 OpenVPN Inc <sales@openvpn.net>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2
@@ -613,6 +613,31 @@ uninit_proxy(struct context *c)
     uninit_proxy_dowork(c);
 }
 
+/*
+ * Saves the initial state of NCP-regotiable
+ * options into a storage which persists over SIGUSR1.
+ */
+static void
+save_ncp_options(struct context *c)
+{
+#ifdef ENABLE_CRYPTO
+    c->c1.ciphername = c->options.ciphername;
+    c->c1.authname = c->options.authname;
+    c->c1.keysize = c->options.keysize;
+#endif
+}
+
+/* Restores NCP-negotiable options to original values */
+static void
+restore_ncp_options(struct context *c)
+{
+#ifdef ENABLE_CRYPTO
+    c->options.ciphername = c->c1.ciphername;
+    c->options.authname = c->c1.authname;
+    c->options.keysize = c->c1.keysize;
+#endif
+}
+
 void
 context_init_1(struct context *c)
 {
@@ -621,6 +646,8 @@ context_init_1(struct context *c)
     packet_id_persist_init(&c->c1.pid_persist);
 
     init_connection_list(c);
+
+    save_ncp_options(c);
 
 #if defined(ENABLE_PKCS11)
     if (c->first_time)
@@ -1016,7 +1043,9 @@ print_openssl_info(const struct options *options)
         }
         if (options->show_tls_ciphers)
         {
-            show_available_tls_ciphers(options->cipher_list);
+            show_available_tls_ciphers(options->cipher_list,
+                                       options->cipher_list_tls13,
+                                       options->tls_cert_profile);
         }
         if (options->show_curves)
         {
@@ -1692,6 +1721,9 @@ do_open_tun(struct context *c)
     if (c->c1.tuntap)
     {
         oldtunfd = c->c1.tuntap->fd;
+        free(c->c1.tuntap);
+        c->c1.tuntap = NULL;
+        c->c1.tuntap_owned = false;
     }
 #endif
 
@@ -2262,9 +2294,16 @@ do_deferred_options(struct context *c, const unsigned int found)
         {
             tls_poor_mans_ncp(&c->options, c->c2.tls_multi->remote_ciphername);
         }
-        /* Do not regenerate keys if server sends an extra push reply */
-        if (!session->key[KS_PRIMARY].crypto_options.key_ctx_bi.initialized
-            && !tls_session_update_crypto_params(session, &c->options, &c->c2.frame))
+        struct frame *frame_fragment = NULL;
+#ifdef ENABLE_FRAGMENT
+        if (c->options.ce.fragment)
+        {
+            frame_fragment = &c->c2.frame_fragment;
+        }
+#endif
+
+        if (!tls_session_update_crypto_params(session, &c->options, &c->c2.frame,
+                                              frame_fragment))
         {
             msg(D_TLS_ERRORS, "OPTIONS ERROR: failed to import crypto options");
             return false;
@@ -2606,10 +2645,6 @@ do_init_crypto_tls_c1(struct context *c)
                                options->tls_crypt_inline, options->tls_server);
         }
 
-        c->c1.ciphername = options->ciphername;
-        c->c1.authname = options->authname;
-        c->c1.keysize = options->keysize;
-
 #if 0 /* was: #if ENABLE_INLINE_FILES --  Note that enabling this code will break restarts */
         if (options->priv_key_file_inline)
         {
@@ -2621,11 +2656,6 @@ do_init_crypto_tls_c1(struct context *c)
     else
     {
         msg(D_INIT_MEDIUM, "Re-using SSL/TLS context");
-
-        /* Restore pre-NCP cipher options */
-        c->options.ciphername = c->c1.ciphername;
-        c->options.authname = c->c1.authname;
-        c->options.keysize = c->c1.keysize;
     }
 }
 
@@ -3012,6 +3042,7 @@ do_init_frame(struct context *c)
      */
     c->c2.frame_fragment = c->c2.frame;
     frame_subtract_extra(&c->c2.frame_fragment, &c->c2.frame_fragment_omit);
+    c->c2.frame_fragment_initial = c->c2.frame_fragment;
 #endif
 
 #if defined(ENABLE_FRAGMENT) && defined(ENABLE_OCC)
@@ -3433,6 +3464,12 @@ do_close_tls(struct context *c)
     }
     c->c2.options_string_local = c->c2.options_string_remote = NULL;
 #endif
+
+    if (c->c2.pulled_options_state)
+    {
+        md_ctx_cleanup(c->c2.pulled_options_state);
+        md_ctx_free(c->c2.pulled_options_state);
+    }
 #endif
 }
 
@@ -3854,7 +3891,7 @@ init_management_callback_p2p(struct context *c)
 #ifdef ENABLE_MANAGEMENT
 
 void
-init_management(struct context *c)
+init_management(void)
 {
     if (!management)
     {
@@ -4309,6 +4346,8 @@ close_instance(struct context *c)
 
         /* free key schedules */
         do_close_free_key_schedule(c, (c->mode == CM_P2P || c->mode == CM_TOP));
+
+        restore_ncp_options(c);
 
         /* close TCP/UDP connection */
         do_close_link_socket(c);

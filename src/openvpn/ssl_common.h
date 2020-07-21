@@ -5,8 +5,8 @@
  *             packet encryption, packet authentication, and
  *             packet compression.
  *
- *  Copyright (C) 2002-2017 OpenVPN Technologies, Inc. <sales@openvpn.net>
- *  Copyright (C) 2010-2017 Fox Crypto B.V. <openvpn@fox-it.com>
+ *  Copyright (C) 2002-2018 OpenVPN Inc <sales@openvpn.net>
+ *  Copyright (C) 2010-2018 Fox Crypto B.V. <openvpn@fox-it.com>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2
@@ -555,11 +555,5 @@ struct tls_multi
      *   representing control channel
      *   sessions with the remote peer. */
 };
-
-
-#define SHOW_TLS_CIPHER_LIST_WARNING \
-    "Be aware that that whether a cipher suite in this list can actually work\n" \
-    "depends on the specific setup of both peers. See the man page entries of\n" \
-    "--tls-cipher and --show-tls for more details.\n\n"
 
 #endif /* SSL_COMMON_H_ */

@@ -5,7 +5,7 @@
  *             packet encryption, packet authentication, and
  *             packet compression.
  *
- *  Copyright (C) 2002-2017 OpenVPN Technologies, Inc. <sales@openvpn.net>
+ *  Copyright (C) 2002-2018 OpenVPN Inc <sales@openvpn.net>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2
@@ -201,7 +201,7 @@ openvpn_main(int argc, char *argv[])
 
 #ifdef ENABLE_MANAGEMENT
             /* initialize management subsystem */
-            init_management(&c);
+            init_management();
 #endif
 
             /* initialize options to default state */
@@ -329,6 +329,7 @@ openvpn_main(int argc, char *argv[])
             }
             while (c.sig->signal_received == SIGUSR1);
 
+            env_set_destroy(c.es);
             uninit_options(&c.options);
             gc_reset(&c.gc);
         }
@@ -336,8 +337,6 @@ openvpn_main(int argc, char *argv[])
     }
 
     context_gc_free(&c);
-
-    env_set_destroy(c.es);
 
 #ifdef ENABLE_MANAGEMENT
     /* close management interface */

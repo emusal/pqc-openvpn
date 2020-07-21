@@ -5,7 +5,7 @@
  *             packet encryption, packet authentication, and
  *             packet compression.
  *
- *  Copyright (C) 2002-2017 OpenVPN Technologies, Inc. <sales@openvpn.net>
+ *  Copyright (C) 2002-2018 OpenVPN Inc <sales@openvpn.net>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2
@@ -834,7 +834,7 @@ tunnel_server_tcp(struct context *top)
 #endif
 
     /* shut down management interface */
-    uninit_management_callback_multi(&multi);
+    uninit_management_callback();
 
     /* save ifconfig-pool */
     multi_ifconfig_pool_persist(&multi, true);

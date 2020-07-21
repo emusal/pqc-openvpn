@@ -78,8 +78,9 @@ build_mbedtls () {
 
 download_openssl () {
     if [ ! -f "download-cache/openssl-${OPENSSL_VERSION}.tar.gz" ]; then
+        MAJOR=`echo $OPENSSL_VERSION | sed -e 's/\([0-9.]*\).*/\1/'`
         wget -P download-cache/ \
-            "https://www.openssl.org/source/openssl-${OPENSSL_VERSION}.tar.gz"
+             "https://www.openssl.org/source/old/${MAJOR}/openssl-${OPENSSL_VERSION}.tar.gz"
     fi
 }
 
@@ -111,7 +112,7 @@ build_openssl_mingw () {
         fi
 
         ./Configure --cross-compile-prefix=${CHOST}- shared \
-           ${TARGET} no-multilib no-capieng --prefix="${PREFIX}" --openssldir="${PREFIX}" -static-libgcc
+           ${TARGET} no-capieng --prefix="${PREFIX}" --openssldir="${PREFIX}" -static-libgcc
         make install
     )
 }
@@ -129,25 +130,6 @@ build_openssl () {
         echo "${OPENSSL_VERSION}" > "${PREFIX}/.openssl-version"
     fi
 }
-
-# Enable ccache
-if [ "${TRAVIS_OS_NAME}" != "osx" ] && [ -z ${CHOST+x} ]; then
-    # ccache not available on osx, see:
-    # https://github.com/travis-ci/travis-ci/issues/5567
-    # also ccache not enabled for cross builds
-    mkdir -p "${HOME}/bin"
-    ln -s "$(which ccache)" "${HOME}/bin/${CC}"
-    PATH="${HOME}/bin:${PATH}"
-fi
-
-if [ ! -z ${CHOST+x} ]; then
-      #
-      # openvpn requires at least mingw-gcc-4.9, which is available at xenial repo
-      #
-      sudo apt-add-repository "deb http://archive.ubuntu.com/ubuntu xenial main universe"
-      sudo apt-get update
-      sudo apt-get -y install dpkg mingw-w64
-fi
 
 # Download and build crypto lib
 if [ "${SSLLIB}" = "openssl" ]; then
